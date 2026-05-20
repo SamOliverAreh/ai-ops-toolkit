@@ -1,0 +1,30 @@
+name: Lint
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  lint:
+    name: Lint & Style
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - run: pip install ruff black
+
+      - name: ruff
+        run: ruff check scripts/python/ tests/python/
+
+      - name: black
+        run: black --check scripts/python/ tests/python/
+
+      - name: shellcheck
+        run: |
+          sudo apt-get install -y shellcheck -q
+          find scripts/bash -name "*.sh" -exec shellcheck {} +

@@ -1,0 +1,74 @@
+# configs/config.yaml
+# Central configuration — override any key via environment variable
+
+general:
+  env: ${ENV:-development}
+  log_level: ${LOG_LEVEL:-INFO}
+
+paths:
+  model_artifact_dir: ${MODEL_ARTIFACT_DIR:-/opt/models}
+  backup_dest: ${BACKUP_DEST:-./backups}
+  log_dir: ${LOG_DIR:-./logs}
+
+backup:
+  retention_days: 30
+  compress: true
+  schedule: "0 2 * * *"   # 2am daily
+
+log_cleanup:
+  retention_days: 14
+  max_size_mb: 500
+  patterns:
+    - "*.log"
+    - "*.log.gz"
+
+health_check:
+  endpoints:
+    - name: model-api
+      url: ${MODEL_ENDPOINT:-http://localhost:8080/predict}
+      method: GET
+      expected_status: 200
+      timeout_seconds: 5
+    - name: prometheus
+      url: http://localhost:9090/-/healthy
+      method: GET
+      expected_status: 200
+      timeout_seconds: 3
+  disk_threshold_pct: 85
+  memory_threshold_pct: 90
+  cpu_threshold_pct: 95
+
+sla:
+  breach_threshold_hours: 24
+  critical_threshold_hours: 4
+  jira_project: ${JIRA_PROJECT_KEY:-OPS}
+  notify_on_breach: true
+
+model_monitoring:
+  drift_threshold: ${DRIFT_THRESHOLD:-0.15}
+  performance_threshold: ${PERFORMANCE_THRESHOLD:-0.80}
+  check_interval_minutes: 60
+  metrics:
+    - accuracy
+    - f1_score
+    - drift_score
+
+notifications:
+  slack:
+    webhook_url: ${SLACK_WEBHOOK_URL}
+    channel: ${SLACK_CHANNEL:-#ops-alerts}
+    username: "AI Ops Bot"
+    icon_emoji: ":robot_face:"
+  email:
+    from: ${ALERT_EMAIL_FROM}
+    to: ${ALERT_EMAIL_TO}
+
+reporting:
+  schedule: "0 8 * * 1"   # Monday 8am
+  recipients:
+    - ${ALERT_EMAIL_TO}
+  include_sections:
+    - sla_summary
+    - model_performance
+    - system_health
+    - jira_tickets

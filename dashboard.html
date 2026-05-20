@@ -1,0 +1,1142 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Ops Toolkit — Control Panel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Syne:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+/* -- Theme tokens -- */
+[data-theme="dark"] {
+  --bg:       #0a0c10;
+  --bg2:      #0f1117;
+  --bg3:      #161922;
+  --border:   rgba(255,255,255,0.07);
+  --border2:  rgba(255,255,255,0.14);
+  --text:     #e8eaf0;
+  --text2:    #8b8fa8;
+  --text3:    #555870;
+  --shadow:   rgba(0,0,0,0.5);
+  --scanline: rgba(0,0,0,0.03);
+  --topbar-blur-bg: rgba(10,12,16,0.85);
+}
+[data-theme="light"] {
+  --bg:       #f4f5f7;
+  --bg2:      #ffffff;
+  --bg3:      #eceef2;
+  --border:   rgba(0,0,0,0.08);
+  --border2:  rgba(0,0,0,0.15);
+  --text:     #111318;
+  --text2:    #5a5e72;
+  --text3:    #9a9eb4;
+  --shadow:   rgba(0,0,0,0.08);
+  --scanline: transparent;
+  --topbar-blur-bg: rgba(244,245,247,0.9);
+}
+
+/* -- shared accent tokens (same both modes) -- */
+:root {
+  --green:    #1fd898; --green-bg: rgba(31,216,152,0.10); --green-bd: rgba(31,216,152,0.25);
+  --amber:    #f0a500; --amber-bg: rgba(240,165,0,0.10);  --amber-bd: rgba(240,165,0,0.25);
+  --red:      #f05050; --red-bg:   rgba(240,80,80,0.10);  --red-bd:   rgba(240,80,80,0.25);
+  --blue:     #4a9eff; --blue-bg:  rgba(74,158,255,0.10); --blue-bd:  rgba(74,158,255,0.25);
+  --accent:   #1fd898;
+  --mono: 'JetBrains Mono', monospace;
+  --sans: 'Syne', sans-serif;
+  --sidebar-w: 220px;
+  --transition-theme: background 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+html { font-size:16px; scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--mono);
+  min-height: 100vh;
+  overflow-x: hidden;
+  transition: var(--transition-theme);
+}
+
+/* -- scanlines — dark only -- */
+body::before {
+  content:'';
+  position:fixed;inset:0;
+  background: repeating-linear-gradient(0deg,transparent,transparent 2px,var(--scanline) 2px,var(--scanline) 4px);
+  pointer-events:none;
+  z-index:9999;
+}
+
+/* -- Scroll-reveal -- */
+.reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 0.55s ease, transform 0.55s ease;
+}
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+.reveal-delay-1 { transition-delay: 0.08s; }
+.reveal-delay-2 { transition-delay: 0.16s; }
+.reveal-delay-3 { transition-delay: 0.24s; }
+.reveal-delay-4 { transition-delay: 0.32s; }
+
+/* -- Layout -- */
+.layout {
+  display: grid;
+  grid-template-columns: var(--sidebar-w) 1fr;
+  min-height: 100vh;
+}
+
+/* -- Mobile overlay -- */
+.sidebar-overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.55);
+  z-index: 99;
+  backdrop-filter: blur(2px);
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+.sidebar-overlay.open { opacity: 1; }
+
+/* -- Sidebar -- */
+.sidebar {
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  padding: 28px 0;
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  z-index: 100;
+  transition: var(--transition-theme), transform 0.3s cubic-bezier(0.4,0,0.2,1);
+}
+
+.logo {
+  padding: 0 24px 24px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 20px;
+}
+.logo-mark {
+  font-family: var(--sans);
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--accent); margin-bottom: 4px;
+}
+.logo-name {
+  font-family: var(--sans);
+  font-size: 16px; font-weight: 800;
+  color: var(--text); line-height: 1.2;
+}
+.logo-close {
+  display: none;
+  position: absolute; top: 16px; right: 16px;
+  background: none; border: none;
+  color: var(--text2); font-size: 20px;
+  cursor: pointer; padding: 4px;
+}
+
+.nav-section { padding: 0 16px; margin-bottom: 20px; }
+.nav-label {
+  font-size: 9px; letter-spacing: 0.15em; text-transform: uppercase;
+  color: var(--text3); padding: 0 8px; margin-bottom: 6px;
+}
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 10px; border-radius: 8px;
+  font-size: 12px; color: var(--text2);
+  cursor: pointer; border: 1px solid transparent;
+  background: none; width: 100%; text-align: left;
+  transition: all 0.15s; text-decoration: none; font-family: var(--mono);
+}
+.nav-item i { font-size: 15px; }
+.nav-item:hover { background: var(--bg3); color: var(--text); }
+.nav-item.active { background: var(--green-bg); color: var(--green); border-color: var(--green-bd); }
+.nav-item .badge-count {
+  margin-left: auto;
+  background: var(--amber-bg); color: var(--amber);
+  border: 1px solid var(--amber-bd);
+  font-size: 9px; padding: 1px 6px; border-radius: 99px;
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  padding: 16px 24px 0;
+  border-top: 1px solid var(--border);
+}
+.system-status {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 11px; color: var(--text2);
+}
+.pulse-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--green);
+  animation: pulse 2s infinite; flex-shrink: 0;
+}
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(0.8)} }
+
+/* -- Main -- */
+.main { background: var(--bg); overflow-y: auto; transition: var(--transition-theme); }
+
+/* -- Topbar -- */
+.topbar {
+  padding: 16px 32px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0;
+  background: var(--topbar-blur-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  z-index: 50;
+  transition: var(--transition-theme), box-shadow 0.3s;
+}
+.topbar.scrolled { box-shadow: 0 1px 20px var(--shadow); }
+
+.topbar-left { display: flex; align-items: center; gap: 12px; }
+.hamburger {
+  display: none;
+  background: none; border: 1px solid var(--border2);
+  border-radius: 8px; padding: 7px 9px;
+  color: var(--text2); cursor: pointer; font-size: 18px;
+  transition: all 0.15s;
+}
+.hamburger:hover { background: var(--bg3); color: var(--text); }
+
+.topbar-title-group { display: flex; flex-direction: column; gap: 2px; }
+.page-title { font-family: var(--sans); font-size: 16px; font-weight: 700; color: var(--text); }
+.page-sub { font-size: 10px; color: var(--text3); }
+
+.topbar-right { display: flex; align-items: center; gap: 8px; }
+.topbar-btn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 13px; border-radius: 8px;
+  font-family: var(--mono); font-size: 11px; cursor: pointer;
+  border: 1px solid var(--border2);
+  background: var(--bg2); color: var(--text2);
+  transition: all 0.15s; text-decoration: none;
+}
+.topbar-btn:hover { background: var(--bg3); color: var(--text); }
+.topbar-btn.primary { background: var(--green-bg); color: var(--green); border-color: var(--green-bd); }
+.topbar-btn.primary:hover { background: rgba(31,216,152,0.18); }
+.topbar-btn i { font-size: 14px; }
+
+/* -- Theme toggle -- */
+.theme-toggle {
+  display: flex; align-items: center; gap: 0;
+  background: var(--bg3); border: 1px solid var(--border2);
+  border-radius: 8px; overflow: hidden; padding: 0;
+}
+.theme-opt {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px;
+  background: none; border: none;
+  color: var(--text3); cursor: pointer; font-size: 14px;
+  transition: all 0.2s;
+}
+.theme-opt.active { background: var(--bg2); color: var(--accent); }
+.theme-opt:hover:not(.active) { color: var(--text2); }
+
+/* -- Content -- */
+.content { padding: 28px 32px; }
+
+/* -- Metric cards -- */
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(4,1fr);
+  gap: 14px; margin-bottom: 28px;
+}
+.metric-card {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 12px; padding: 18px 20px;
+  position: relative; overflow: hidden;
+  transition: var(--transition-theme), transform 0.2s, box-shadow 0.2s;
+  cursor: default;
+}
+.metric-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px var(--shadow); border-color: var(--border2); }
+.metric-card::after { content:''; position:absolute; top:0;left:0;right:0; height:2px; }
+.metric-card.green::after { background: var(--green); }
+.metric-card.amber::after { background: var(--amber); }
+.metric-card.blue::after  { background: var(--blue); }
+.metric-card.red::after   { background: var(--red); }
+.metric-label { font-size:10px; letter-spacing:0.1em; text-transform:uppercase; color:var(--text3); margin-bottom:10px; }
+.metric-value { font-family:var(--sans); font-size:30px; font-weight:800; line-height:1; margin-bottom:6px; }
+.metric-value.green { color:var(--green); }
+.metric-value.amber { color:var(--amber); }
+.metric-value.blue  { color:var(--blue); }
+.metric-value.red   { color:var(--red); }
+.metric-sub { font-size:11px; color:var(--text3); display:flex; align-items:center; gap:5px; }
+.metric-sub i { font-size:12px; }
+.metric-sub.up { color:var(--green); }
+
+/* -- Section header -- */
+.section-hdr { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+.section-title { font-family:var(--sans); font-size:13px; font-weight:700; color:var(--text); display:flex; align-items:center; gap:8px; }
+.section-title i { font-size:15px; color:var(--text3); }
+.section-action { font-size:11px; color:var(--text3); cursor:pointer; border:none; background:none; font-family:var(--mono); text-decoration:none; transition:color 0.15s; }
+.section-action:hover { color:var(--accent); }
+
+/* -- Two-col -- */
+.two-col { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:28px; }
+
+/* -- Card -- */
+.card {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 12px; padding: 20px;
+  transition: var(--transition-theme), border-color 0.2s;
+}
+.card:hover { border-color: var(--border2); }
+
+/* -- Modules -- */
+.module-row {
+  display:flex; align-items:center; padding:11px 0;
+  border-bottom:1px solid var(--border); gap:12px;
+  transition: opacity 0.15s;
+}
+.module-row:last-child { border-bottom:none; padding-bottom:0; }
+.module-row:first-child { padding-top:0; }
+.module-icon { width:34px;height:34px; border-radius:8px; display:flex;align-items:center;justify-content:center; font-size:16px;flex-shrink:0; }
+.module-icon.green { background:var(--green-bg);color:var(--green);border:1px solid var(--green-bd); }
+.module-icon.amber { background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-bd); }
+.module-icon.blue  { background:var(--blue-bg); color:var(--blue); border:1px solid var(--blue-bd); }
+.module-info { flex:1;min-width:0; }
+.module-name { font-size:12px;font-weight:500;color:var(--text);margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+.module-desc { font-size:10px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+.module-right { display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0; }
+.badge {
+  font-size:9px;font-weight:500;padding:2px 8px;border-radius:99px;
+  text-transform:uppercase;letter-spacing:0.06em;border:1px solid transparent;white-space:nowrap;
+}
+.badge.ok   { background:var(--green-bg);color:var(--green);border-color:var(--green-bd); }
+.badge.warn { background:var(--amber-bg);color:var(--amber);border-color:var(--amber-bd); }
+.badge.info { background:var(--blue-bg); color:var(--blue); border-color:var(--blue-bd); }
+.badge.sched{ background:rgba(140,100,255,0.10);color:#a78bfa;border-color:rgba(140,100,255,0.25); }
+.module-cmd { font-size:9px;color:var(--text3); }
+
+/* -- INTERACTIVE PIPELINE -- */
+.pipeline-wrapper { margin-bottom:28px; }
+
+.pipeline-controls {
+  display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;
+}
+.pipe-ctrl-btn {
+  display:flex;align-items:center;gap:6px;
+  padding:6px 14px;border-radius:8px;
+  font-family:var(--mono);font-size:11px;cursor:pointer;
+  border:1px solid var(--border2);background:var(--bg2);color:var(--text2);
+  transition:all 0.15s;
+}
+.pipe-ctrl-btn:hover{background:var(--bg3);color:var(--text);}
+.pipe-ctrl-btn.green{background:var(--green-bg);color:var(--green);border-color:var(--green-bd);}
+.pipe-ctrl-btn.red  {background:var(--red-bg);  color:var(--red);  border-color:var(--red-bd);}
+.pipe-ctrl-btn.amber{background:var(--amber-bg);color:var(--amber);border-color:var(--amber-bd);}
+.pipe-ctrl-btn i{font-size:13px;}
+
+.pipeline-board {
+  background:var(--bg2);border:1px solid var(--border);
+  border-radius:12px;padding:24px;
+  transition:var(--transition-theme);
+}
+
+/* -- step track -- */
+.pipe-track {
+  display:flex;align-items:flex-start;
+  gap:0;
+  overflow-x:auto;
+  padding-bottom:8px;
+}
+
+.pipe-step {
+  display:flex;flex-direction:column;align-items:center;
+  flex:1;min-width:90px;
+  cursor:pointer;
+  user-select:none;
+}
+
+.pipe-node-wrap {
+  display:flex;align-items:center;width:100%;
+}
+
+.pipe-dot {
+  width:42px;height:42px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;flex-shrink:0;
+  border:2px solid var(--border2);
+  background:var(--bg3);color:var(--text3);
+  transition:all 0.4s cubic-bezier(0.4,0,0.2,1);
+  position:relative;z-index:1;
+}
+.pipe-dot.idle    { border-color:var(--border2); background:var(--bg3); color:var(--text3); }
+.pipe-dot.running {
+  border-color:var(--blue-bd);background:var(--blue-bg);color:var(--blue);
+  animation: nodePulse 1.2s ease-in-out infinite;
+}
+.pipe-dot.done    { border-color:var(--green-bd);background:var(--green-bg);color:var(--green); }
+.pipe-dot.fail    { border-color:var(--red-bd);  background:var(--red-bg);  color:var(--red);  }
+.pipe-dot.skip    { border-color:var(--border);  background:var(--bg3);     color:var(--text3);opacity:0.5; }
+.pipe-dot:hover   { transform:scale(1.1); }
+
+@keyframes nodePulse {
+  0%,100%{box-shadow:0 0 0 0 rgba(74,158,255,0.4)}
+  50%{box-shadow:0 0 0 8px rgba(74,158,255,0)}
+}
+
+.pipe-connector {
+  flex:1;height:2px;
+  background:var(--border);
+  margin-bottom:52px;
+  transition:background 0.5s ease;
+  position:relative;overflow:hidden;
+}
+.pipe-connector.active::after {
+  content:'';
+  position:absolute;inset:0;
+  background:var(--green-bd);
+  animation:fillLine 0.6s ease forwards;
+}
+@keyframes fillLine{from{transform:scaleX(0);transform-origin:left}to{transform:scaleX(1);transform-origin:left}}
+.pipe-connector.done { background:var(--green-bd); }
+
+.pipe-label-row {
+  display:flex;align-items:center;gap:4px;
+  margin-top:10px;
+}
+.pipe-label {
+  font-size:10px;color:var(--text3);
+  text-transform:uppercase;letter-spacing:0.07em;
+  text-align:center;
+  transition:color 0.3s;
+}
+.pipe-label.done { color:var(--green); }
+.pipe-label.running { color:var(--blue); }
+.pipe-label.fail { color:var(--red); }
+.pipe-duration { font-size:9px; color:var(--text3); }
+
+/* -- detail panel -- */
+.pipe-detail {
+  margin-top:18px;
+  background:var(--bg);border:1px solid var(--border);
+  border-radius:10px;padding:16px;
+  display:none;
+  animation:slideDown 0.25s ease;
+}
+.pipe-detail.open { display:block; }
+@keyframes slideDown{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+
+.pipe-detail-header {
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:12px;
+}
+.pipe-detail-name { font-family:var(--sans);font-size:14px;font-weight:700;color:var(--text); }
+.pipe-detail-close { background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;padding:2px; }
+
+.pipe-logs {
+  font-size:11px;line-height:1.9;
+  border-radius:6px;
+  max-height:130px;overflow-y:auto;
+}
+.pipe-log-line { display:flex;gap:10px; }
+.pipe-log-ts  { color:var(--text3);flex-shrink:0;width:60px; }
+.pipe-log-msg { color:var(--text2); }
+.pipe-log-msg.green { color:var(--green); }
+.pipe-log-msg.blue  { color:var(--blue); }
+.pipe-log-msg.red   { color:var(--red); }
+.pipe-log-msg.amber { color:var(--amber); }
+
+.pipe-meta {
+  display:flex;gap:20px;margin-top:12px;padding-top:12px;
+  border-top:1px solid var(--border);
+  font-size:11px;color:var(--text3);flex-wrap:wrap;
+}
+.pipe-meta span { display:flex;align-items:center;gap:5px; }
+.pipe-meta i { font-size:12px; }
+
+/* -- run progress bar -- */
+.pipe-progress-row {
+  display:flex;align-items:center;gap:12px;
+  margin-top:16px;padding-top:16px;
+  border-top:1px solid var(--border);
+}
+.pipe-progress-label { font-size:11px;color:var(--text3);flex-shrink:0; }
+.pipe-progress-bar {
+  flex:1;height:4px;background:var(--border);border-radius:2px;overflow:hidden;
+}
+.pipe-progress-fill {
+  height:100%;background:var(--green);border-radius:2px;
+  transition:width 0.5s ease;
+}
+.pipe-progress-pct { font-size:11px;color:var(--green);flex-shrink:0;min-width:30px;text-align:right; }
+
+/* -- SLA table -- */
+.sla-table{width:100%;font-size:11px;border-collapse:collapse;}
+.sla-table th{text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:0.1em;color:var(--text3);padding:0 0 10px;border-bottom:1px solid var(--border);}
+.sla-table td{padding:10px 0;border-bottom:1px solid var(--border);vertical-align:middle;}
+.sla-table tr:last-child td{border-bottom:none;}
+.sla-key{color:var(--blue);font-size:10px;}
+.sla-summary{color:var(--text2);max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
+/* -- Chart wrap -- */
+.chart-wrap{position:relative;width:100%;height:175px;}
+
+/* -- Log -- */
+.log-box {
+  background:var(--bg);border:1px solid var(--border);
+  border-radius:8px;padding:14px 16px;
+  font-size:11px;line-height:2;
+  max-height:200px;overflow-y:auto;
+}
+.log-box::-webkit-scrollbar{width:4px;}
+.log-box::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+.log-line{display:flex;gap:10px;}
+.log-ts{color:var(--text3);flex-shrink:0;}
+.log-lvl{flex-shrink:0;width:44px;}
+.log-lvl.ok{color:var(--green);}
+.log-lvl.warn{color:var(--amber);}
+.log-lvl.info{color:var(--blue);}
+.log-lvl.err{color:var(--red);}
+.log-msg{color:var(--text2);}
+
+/* -- Quick actions -- */
+.actions-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.action-card {
+  display:flex;align-items:center;gap:10px;
+  padding:12px 14px;
+  background:var(--bg3);border:1px solid var(--border);
+  border-radius:10px;cursor:pointer;
+  font-family:var(--mono);font-size:11px;color:var(--text2);
+  transition:all 0.15s;text-decoration:none;
+}
+.action-card i{font-size:16px;flex-shrink:0;}
+.action-card:hover{background:var(--bg2);border-color:var(--border2);color:var(--text);}
+.action-card .act-arrow{margin-left:auto;font-size:12px;color:var(--text3);}
+
+/* -- Footer -- */
+.footer {
+  display:flex;gap:10px;flex-wrap:wrap;
+  padding:20px 32px;border-top:1px solid var(--border);
+  margin-top:12px;
+}
+.footer-link {
+  display:flex;align-items:center;gap:6px;
+  padding:7px 14px;border-radius:8px;
+  font-size:11px;color:var(--text2);text-decoration:none;
+  background:var(--bg2);border:1px solid var(--border);
+  transition:all 0.15s;
+}
+.footer-link i{font-size:14px;}
+.footer-link:hover{color:var(--text);border-color:var(--border2);background:var(--bg3);}
+
+/* -- Scrollbar -- */
+::-webkit-scrollbar{width:6px;height:6px;}
+::-webkit-scrollbar-track{background:var(--bg2);}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
+
+/* -- Responsive -- */
+@media(max-width:900px){
+  .layout{grid-template-columns:1fr;}
+  .sidebar{
+    position:fixed;top:0;left:0;bottom:0;
+    width:var(--sidebar-w);
+    transform:translateX(-100%);
+    z-index:100;
+  }
+  .sidebar.mobile-open{transform:translateX(0);}
+  .sidebar-overlay{display:block;}
+  .logo-close{display:flex;align-items:center;justify-content:center;}
+  .hamburger{display:flex;}
+  .metric-grid{grid-template-columns:repeat(2,1fr);}
+  .two-col{grid-template-columns:1fr;}
+  .topbar{padding:14px 16px;}
+  .content{padding:20px 16px;}
+  .footer{padding:16px;}
+  .pipe-track{gap:0;}
+  .pipe-dot{width:36px;height:36px;font-size:14px;}
+}
+@media(max-width:500px){
+  .metric-grid{grid-template-columns:1fr;}
+  .actions-grid{grid-template-columns:1fr;}
+  .topbar-btn.hide-mobile{display:none;}
+  .pipe-label{font-size:9px;}
+  .pipe-dot{width:32px;height:32px;font-size:12px;}
+}
+
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<!-- Mobile sidebar overlay -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<div class="layout">
+
+<!-- ── Sidebar ── -->
+<aside class="sidebar" id="sidebar">
+  <button class="logo-close" onclick="closeSidebar()" aria-label="Close menu"><i class="ti ti-x"></i></button>
+  <div class="logo">
+    <div class="logo-mark">AI OPS</div>
+    <div class="logo-name">Toolkit<br>Control Panel</div>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-label">Overview</div>
+    <a class="nav-item active" href="#top" onclick="closeSidebar()"><i class="ti ti-dashboard"></i> Dashboard</a>
+    <a class="nav-item" href="#modules" onclick="closeSidebar()"><i class="ti ti-puzzle"></i> Modules</a>
+    <a class="nav-item" href="#pipeline" onclick="closeSidebar()"><i class="ti ti-git-merge"></i> CI/CD Pipeline</a>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-label">Operations</div>
+    <a class="nav-item" href="#sla" onclick="closeSidebar()"><i class="ti ti-clock-exclamation"></i> SLA Monitor <span class="badge-count">2</span></a>
+    <a class="nav-item" href="#logs" onclick="closeSidebar()"><i class="ti ti-terminal"></i> Activity Log</a>
+    <a class="nav-item" href="#actions" onclick="closeSidebar()"><i class="ti ti-player-play"></i> Quick Actions</a>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-label">Links</div>
+    <a class="nav-item" href="https://github.com/SamOliverAreh/ai-ops-toolkit" target="_blank"><i class="ti ti-brand-github"></i> GitHub Repo</a>
+    <a class="nav-item" href="https://github.com/SamOliverAreh/ai-ops-toolkit/actions" target="_blank"><i class="ti ti-refresh"></i> Actions</a>
+    <a class="nav-item" href="https://github.com/SamOliverAreh/ai-ops-toolkit/blob/main/docs/SETUP.md" target="_blank"><i class="ti ti-book"></i> Setup Guide</a>
+    <a class="nav-item" href="https://github.com/SamOliverAreh/ai-ops-toolkit/blob/main/docs/RUNBOOKS.md" target="_blank"><i class="ti ti-file-description"></i> Runbooks</a>
+  </div>
+
+  <div class="sidebar-footer">
+    <div class="system-status"><div class="pulse-dot"></div>All systems operational</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:8px;">Last check: <span id="lastCheck">just now</span></div>
+  </div>
+</aside>
+
+<!-- ── Main ── -->
+<main class="main" id="mainContent">
+  <div id="top"></div>
+
+  <!-- Topbar -->
+  <div class="topbar" id="topbar">
+    <div class="topbar-left">
+      <button class="hamburger" onclick="openSidebar()" aria-label="Open menu"><i class="ti ti-menu-2"></i></button>
+      <div class="topbar-title-group">
+        <div class="page-title">Operations Dashboard</div>
+        <div class="page-sub" id="currentTime">Loading...</div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <!-- Theme toggle -->
+      <div class="theme-toggle" role="group" aria-label="Theme">
+        <button class="theme-opt active" id="btnDark" onclick="setTheme('dark')" aria-label="Dark mode" title="Dark mode">
+          <i class="ti ti-moon"></i>
+        </button>
+        <button class="theme-opt" id="btnLight" onclick="setTheme('light')" aria-label="Light mode" title="Light mode">
+          <i class="ti ti-sun"></i>
+        </button>
+      </div>
+      <a class="topbar-btn hide-mobile" href="https://github.com/SamOliverAreh/ai-ops-toolkit" target="_blank">
+        <i class="ti ti-brand-github"></i> View Repo
+      </a>
+      <button class="topbar-btn primary" onclick="simulateRefresh()">
+        <i class="ti ti-refresh" id="refreshIcon"></i> Refresh
+      </button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- Metrics -->
+    <div class="metric-grid" id="metricGrid">
+      <div class="metric-card green reveal reveal-delay-1">
+        <div class="metric-label">System Health</div>
+        <div class="metric-value green">99.9%</div>
+        <div class="metric-sub up"><i class="ti ti-trending-up"></i> uptime this week</div>
+      </div>
+      <div class="metric-card amber reveal reveal-delay-2">
+        <div class="metric-label">SLA Compliance</div>
+        <div class="metric-value amber">87%</div>
+        <div class="metric-sub"><i class="ti ti-alert-triangle"></i> 2 warnings open</div>
+      </div>
+      <div class="metric-card green reveal reveal-delay-3">
+        <div class="metric-label">Model Accuracy</div>
+        <div class="metric-value green">91.3%</div>
+        <div class="metric-sub"><i class="ti ti-brain"></i> drift score 0.042</div>
+      </div>
+      <div class="metric-card blue reveal reveal-delay-4">
+        <div class="metric-label">Pipeline Runs</div>
+        <div class="metric-value blue">14,832</div>
+        <div class="metric-sub"><i class="ti ti-database"></i> predictions this week</div>
+      </div>
+    </div>
+
+    <!-- Modules + SLA -->
+    <div class="two-col" id="modules">
+      <div class="reveal">
+        <div class="section-hdr">
+          <div class="section-title"><i class="ti ti-puzzle"></i> Modules</div>
+          <span class="section-action">6 active</span>
+        </div>
+        <div class="card">
+          <div class="module-row"><div class="module-icon green"><i class="ti ti-brain"></i></div><div class="module-info"><div class="module-name">model_monitor.py</div><div class="module-desc">KS + PSI drift detection, F1/accuracy tracking</div></div><div class="module-right"><span class="badge ok">healthy</span><span class="module-cmd">make monitor</span></div></div>
+          <div class="module-row"><div class="module-icon amber"><i class="ti ti-clock-exclamation"></i></div><div class="module-info"><div class="module-name">sla_monitor.py</div><div class="module-desc">SLA breach detection by priority tier</div></div><div class="module-right"><span class="badge warn">2 warnings</span><span class="module-cmd">make sla</span></div></div>
+          <div class="module-row"><div class="module-icon green"><i class="ti ti-database-export"></i></div><div class="module-info"><div class="module-name">data_pipeline.py</div><div class="module-desc">Modular ETL with retry logic + chunking</div></div><div class="module-right"><span class="badge ok">healthy</span><span class="module-cmd">make pipeline</span></div></div>
+          <div class="module-row"><div class="module-icon blue"><i class="ti ti-mail"></i></div><div class="module-info"><div class="module-name">report_emailer.py</div><div class="module-desc">HTML ops report + SendGrid delivery</div></div><div class="module-right"><span class="badge sched">scheduled</span><span class="module-cmd">make report</span></div></div>
+          <div class="module-row"><div class="module-icon green"><i class="ti ti-heart-rate-monitor"></i></div><div class="module-info"><div class="module-name">health_check.sh</div><div class="module-desc">CPU/memory/disk/endpoint + Prometheus metrics</div></div><div class="module-right"><span class="badge ok">healthy</span><span class="module-cmd">make health</span></div></div>
+          <div class="module-row"><div class="module-icon green"><i class="ti ti-cloud-upload"></i></div><div class="module-info"><div class="module-name">model_backup.sh</div><div class="module-desc">Versioned S3/GCS backup with checksums</div></div><div class="module-right"><span class="badge ok">2h ago</span><span class="module-cmd">make backup</span></div></div>
+        </div>
+      </div>
+
+      <div class="reveal reveal-delay-1" id="sla">
+        <div class="section-hdr">
+          <div class="section-title"><i class="ti ti-clock-exclamation"></i> SLA Status</div>
+          <span class="section-action">5 tickets</span>
+        </div>
+        <div class="card" style="margin-bottom:14px;">
+          <table class="sla-table">
+            <thead><tr><th>Ticket</th><th>Priority</th><th>Age</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr><td><div class="sla-key">OPS-001</div><div class="sla-summary">Production API latency spike</div></td><td><span class="badge" style="background:var(--red-bg);color:var(--red);border-color:var(--red-bd)">Critical</span></td><td style="color:var(--text2);font-size:11px;">6h</td><td><span class="badge" style="background:var(--red-bg);color:var(--red);border-color:var(--red-bd)">Breached</span></td></tr>
+              <tr><td><div class="sla-key">OPS-003</div><div class="sla-summary">Model serving OOM error</div></td><td><span class="badge warn">High</span></td><td style="color:var(--text2);font-size:11px;">20h</td><td><span class="badge warn">Warning</span></td></tr>
+              <tr><td><div class="sla-key">OPS-004</div><div class="sla-summary">Log rotation not running</div></td><td><span class="badge info">Medium</span></td><td style="color:var(--text2);font-size:11px;">50h</td><td><span class="badge warn">Warning</span></td></tr>
+              <tr><td><div class="sla-key">OPS-002</div><div class="sla-summary">Database backup failure</div></td><td><span class="badge warn">High</span></td><td style="color:var(--text2);font-size:11px;">8h</td><td><span class="badge ok">On track</span></td></tr>
+              <tr><td><div class="sla-key">OPS-005</div><div class="sla-summary">Dashboard data stale</div></td><td><span class="badge" style="background:var(--bg3);color:var(--text3);border-color:var(--border)">Low</span></td><td style="color:var(--text2);font-size:11px;">10h</td><td><span class="badge ok">On track</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="section-hdr" style="margin-top:16px;">
+          <div class="section-title"><i class="ti ti-chart-line"></i> Model accuracy (7d)</div>
+        </div>
+        <div class="card">
+          <div class="chart-wrap"><canvas id="perfChart" role="img" aria-label="Line chart of model accuracy and F1 score over 7 days">Model accuracy ranged 89–92%, F1 score ranged 87–89%.</canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════ INTERACTIVE PIPELINE ════════ -->
+    <div class="pipeline-wrapper reveal" id="pipeline">
+      <div class="section-hdr">
+        <div class="section-title"><i class="ti ti-git-merge"></i> CI/CD Pipeline</div>
+        <span style="font-size:11px;color:var(--text3);">main @ fe37181 · click a stage to inspect</span>
+      </div>
+
+      <div class="pipeline-board">
+        <!-- Controls -->
+        <div class="pipeline-controls">
+          <button class="pipe-ctrl-btn green" onclick="runPipeline()"><i class="ti ti-player-play"></i> Simulate Run</button>
+          <button class="pipe-ctrl-btn red"   onclick="failPipeline()"><i class="ti ti-player-stop"></i> Simulate Failure</button>
+          <button class="pipe-ctrl-btn amber" onclick="resetPipeline()"><i class="ti ti-refresh"></i> Reset</button>
+          <span style="margin-left:auto;font-size:11px;color:var(--text3);display:flex;align-items:center;gap:6px;">
+            <a href="https://github.com/SamOliverAreh/ai-ops-toolkit/actions" target="_blank" style="color:var(--blue);text-decoration:none;font-size:11px;">View in GitHub Actions →</a>
+          </span>
+        </div>
+
+        <!-- Step track -->
+        <div class="pipe-track" id="pipeTrack"></div>
+
+        <!-- Progress bar -->
+        <div class="pipe-progress-row">
+          <span class="pipe-progress-label">Progress</span>
+          <div class="pipe-progress-bar"><div class="pipe-progress-fill" id="pipeProgressFill" style="width:0%"></div></div>
+          <span class="pipe-progress-pct" id="pipeProgressPct">0%</span>
+        </div>
+
+        <!-- Detail panel -->
+        <div class="pipe-detail" id="pipeDetail">
+          <div class="pipe-detail-header">
+            <div class="pipe-detail-name" id="pipeDetailName">—</div>
+            <button class="pipe-detail-close" onclick="closeDetail()"><i class="ti ti-x"></i></button>
+          </div>
+          <div class="pipe-logs" id="pipeDetailLogs"></div>
+          <div class="pipe-meta" id="pipeDetailMeta"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Log + Actions -->
+    <div class="two-col" id="logs">
+      <div class="reveal">
+        <div class="section-hdr">
+          <div class="section-title"><i class="ti ti-terminal"></i> Activity Log</div>
+          <button class="section-action" onclick="clearLog()">clear</button>
+        </div>
+        <div class="card" style="padding:0;">
+          <div class="log-box" id="logBox">
+            <div class="log-line"><span class="log-ts">14:32:01</span><span class="log-lvl ok">[OK]</span><span class="log-msg">model_backup.sh — backup_20260520_143201.tar.gz uploaded</span></div>
+            <div class="log-line"><span class="log-ts">14:15:44</span><span class="log-lvl warn">[WARN]</span><span class="log-msg">sla_monitor.py — OPS-001 breached Critical SLA by 2.1h</span></div>
+            <div class="log-line"><span class="log-ts">14:00:00</span><span class="log-lvl ok">[OK]</span><span class="log-msg">health_check.sh — CPU 45%, MEM 62%, DISK 71% — all clear</span></div>
+            <div class="log-line"><span class="log-ts">13:47:12</span><span class="log-lvl info">[INFO]</span><span class="log-msg">data_pipeline.py — 14,832 rows extracted → 14,791 loaded</span></div>
+            <div class="log-line"><span class="log-ts">13:30:00</span><span class="log-lvl ok">[OK]</span><span class="log-msg">model_monitor.py — drift score 0.042, accuracy 91.3%</span></div>
+            <div class="log-line"><span class="log-ts">08:00:02</span><span class="log-lvl info">[INFO]</span><span class="log-msg">report_emailer.py — weekly report sent to team@company.com</span></div>
+            <div class="log-line"><span class="log-ts">03:00:00</span><span class="log-lvl ok">[OK]</span><span class="log-msg">retrain_scheduler.sh — drift 0.042 &lt; 0.15, skip retrain</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="reveal reveal-delay-1" id="actions">
+        <div class="section-hdr"><div class="section-title"><i class="ti ti-player-play"></i> Quick Actions</div></div>
+        <div class="card">
+          <div class="actions-grid">
+            <a class="action-card" href="https://github.com/SamOliverAreh/ai-ops-toolkit" target="_blank"><i class="ti ti-brand-github" style="color:var(--text2)"></i> View Repo<span class="act-arrow">→</span></a>
+            <a class="action-card" href="https://github.com/SamOliverAreh/ai-ops-toolkit/actions" target="_blank"><i class="ti ti-refresh" style="color:var(--blue)"></i> CI/CD Actions<span class="act-arrow">→</span></a>
+            <a class="action-card" href="https://github.com/SamOliverAreh/ai-ops-toolkit/blob/main/docs/SETUP.md" target="_blank"><i class="ti ti-book" style="color:var(--green)"></i> Setup Guide<span class="act-arrow">→</span></a>
+            <a class="action-card" href="https://github.com/SamOliverAreh/ai-ops-toolkit/blob/main/docs/RUNBOOKS.md" target="_blank"><i class="ti ti-file-description" style="color:var(--amber)"></i> Runbooks<span class="act-arrow">→</span></a>
+            <a class="action-card" href="https://github.com/SamOliverAreh/ai-ops-toolkit/blob/main/docs/ARCHITECTURE.md" target="_blank"><i class="ti ti-hierarchy" style="color:var(--blue)"></i> Architecture<span class="act-arrow">→</span></a>
+            <a class="action-card" href="https://github.com/SamOliverAreh/ai-ops-toolkit/blob/main/Makefile" target="_blank"><i class="ti ti-terminal-2" style="color:var(--green)"></i> Makefile Cmds<span class="act-arrow">→</span></a>
+          </div>
+          <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
+            <div style="font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:var(--text3);margin-bottom:10px;">Terminal commands</div>
+            <div style="display:grid;gap:6px;font-size:11px;">
+              <div style="display:flex;justify-content:space-between;padding:6px 10px;background:var(--bg);border-radius:6px;border:1px solid var(--border);"><code style="color:var(--green);">make demo</code><span style="color:var(--text3);">run all scripts</span></div>
+              <div style="display:flex;justify-content:space-between;padding:6px 10px;background:var(--bg);border-radius:6px;border:1px solid var(--border);"><code style="color:var(--green);">make test</code><span style="color:var(--text3);">run test suite</span></div>
+              <div style="display:flex;justify-content:space-between;padding:6px 10px;background:var(--bg);border-radius:6px;border:1px solid var(--border);"><code style="color:var(--green);">docker-compose up -d</code><span style="color:var(--text3);">start monitoring</span></div>
+              <div style="display:flex;justify-content:space-between;padding:6px 10px;background:var(--bg);border-radius:6px;border:1px solid var(--border);"><code style="color:var(--green);">make lint</code><span style="color:var(--text3);">ruff + shellcheck</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+
+  <footer class="footer">
+    <a class="footer-link" href="https://github.com/SamOliverAreh/ai-ops-toolkit" target="_blank"><i class="ti ti-brand-github"></i> SamOliverAreh/ai-ops-toolkit</a>
+    <a class="footer-link" href="https://github.com/SamOliverAreh/ai-ops-toolkit/blob/main/docs/SETUP.md" target="_blank"><i class="ti ti-book"></i> Setup</a>
+    <a class="footer-link" href="https://github.com/SamOliverAreh/ai-ops-toolkit/blob/main/docs/RUNBOOKS.md" target="_blank"><i class="ti ti-file-description"></i> Runbooks</a>
+    <a class="footer-link" href="https://github.com/SamOliverAreh/ai-ops-toolkit/blob/main/docs/ARCHITECTURE.md" target="_blank"><i class="ti ti-hierarchy"></i> Architecture</a>
+    <span style="margin-left:auto;font-size:11px;color:var(--text3);display:flex;align-items:center;gap:6px;"><span class="pulse-dot" style="width:6px;height:6px;"></span> AI Ops Toolkit — Portfolio Project</span>
+  </footer>
+</main>
+</div>
+
+<script>
+/* -- THEME -- */
+function setTheme(t) {
+  document.documentElement.setAttribute('data-theme', t);
+  localStorage.setItem('theme', t);
+  document.getElementById('btnDark').classList.toggle('active', t==='dark');
+  document.getElementById('btnLight').classList.toggle('active', t==='light');
+  updateChartTheme();
+}
+(function(){
+  const saved = localStorage.getItem('theme') || 'dark';
+  setTheme(saved);
+})();
+
+/* -- HAMBURGER / SIDEBAR -- */
+function openSidebar(){
+  document.getElementById('sidebar').classList.add('mobile-open');
+  document.getElementById('sidebarOverlay').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closeSidebar(){
+  document.getElementById('sidebar').classList.remove('mobile-open');
+  document.getElementById('sidebarOverlay').classList.remove('open');
+  document.body.style.overflow='';
+}
+
+/* -- SCROLL EFFECTS -- */
+const revealEls = document.querySelectorAll('.reveal');
+const io = new IntersectionObserver((entries)=>{
+  entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('visible'); io.unobserve(e.target); } });
+},{threshold:0.1});
+revealEls.forEach(el=>io.observe(el));
+
+const topbar = document.getElementById('topbar');
+const mainEl = document.getElementById('mainContent');
+mainEl.addEventListener('scroll',()=>{
+  topbar.classList.toggle('scrolled', mainEl.scrollTop > 10);
+});
+
+/* -- CLOCK -- */
+function updateClock(){
+  const now=new Date();
+  document.getElementById('currentTime').textContent=
+    now.toLocaleDateString('en-GB',{weekday:'long',year:'numeric',month:'long',day:'numeric'})+
+    '   '+now.toLocaleTimeString('en-GB');
+}
+updateClock(); setInterval(updateClock,1000);
+
+let secondsAgo=0;
+setInterval(()=>{
+  secondsAgo++;
+  const el=document.getElementById('lastCheck');
+  el.textContent=secondsAgo<60?secondsAgo+'s ago':Math.floor(secondsAgo/60)+'m ago';
+},1000);
+
+/* -- PIPELINE DATA -- */
+const STEPS=[
+  {
+    id:'lint',icon:'ti-code',label:'Lint',duration:'0m 28s',
+    logs:[
+      {ts:'00:00',cls:'blue',msg:'ruff check scripts/python/ - scanning 6 files'},
+      {ts:'00:12',cls:'blue',msg:'black --check scripts/python/ - formatting OK'},
+      {ts:'00:20',cls:'blue',msg:'shellcheck scripts/bash/*.sh - 4 files checked'},
+      {ts:'00:28',cls:'green',msg:'  All lint checks passed'},
+    ],
+    meta:[{icon:'ti-clock',txt:'Duration: 28s'},{icon:'ti-check',txt:'0 errors, 0 warnings'}]
+  },
+  {
+    id:'test',icon:'ti-test-pipe',label:'Tests',duration:'1m 04s',
+    logs:[
+      {ts:'00:00',cls:'blue',msg:'pytest tests/python/ -v --cov=scripts/python'},
+      {ts:'00:18',cls:'green',msg:'test_model_monitor.py::TestDriftDetector - 5 passed'},
+      {ts:'00:35',cls:'green',msg:'test_sla_monitor.py::TestSLAMonitor - 9 passed'},
+      {ts:'00:52',cls:'green',msg:'test_data_pipeline.py::TestDataPipeline - 7 passed'},
+      {ts:'01:04',cls:'green',msg:'  21 passed, coverage 84%'},
+    ],
+    meta:[{icon:'ti-clock',txt:'Duration: 1m 4s'},{icon:'ti-check',txt:'21 tests passed'},{icon:'ti-chart-bar',txt:'Coverage: 84%'}]
+  },
+  {
+    id:'demo',icon:'ti-player-play',label:'Demo run',duration:'0m 52s',
+    logs:[
+      {ts:'00:00',cls:'blue',msg:'python model_monitor.py --demo - running drift check'},
+      {ts:'00:14',cls:'green',msg:'Drift score: 0.042 - healthy'},
+      {ts:'00:20',cls:'blue',msg:'python sla_monitor.py --source demo - checking tickets'},
+      {ts:'00:31',cls:'amber',msg:'WARN: OPS-001 breached Critical SLA'},
+      {ts:'00:40',cls:'blue',msg:'python data_pipeline.py --demo - 500 rows processed'},
+      {ts:'00:52',cls:'green',msg:'  All demo scripts completed'},
+    ],
+    meta:[{icon:'ti-clock',txt:'Duration: 52s'},{icon:'ti-check',txt:'3 scripts ran'},{icon:'ti-alert-triangle',txt:'1 SLA warning'}]
+  },
+  {
+    id:'docker',icon:'ti-brand-docker',label:'Docker build',duration:'0m 47s',
+    logs:[
+      {ts:'00:00',cls:'blue',msg:'docker build -f github-actions/docker/Dockerfile .'},
+      {ts:'00:12',cls:'blue',msg:'Step 1/8: FROM python:3.11-slim AS builder'},
+      {ts:'00:24',cls:'blue',msg:'Step 5/8: pip install -r requirements.txt'},
+      {ts:'00:38',cls:'blue',msg:'Step 8/8: CMD ["bash","scripts/bash/health_check.sh"]'},
+      {ts:'00:47',cls:'green',msg:'  Image built: ai-ops-toolkit:sha-fe37181'},
+    ],
+    meta:[{icon:'ti-clock',txt:'Duration: 47s'},{icon:'ti-check',txt:'8/8 layers built'},{icon:'ti-database',txt:'Image: 312MB'}]
+  },
+  {
+    id:'push',icon:'ti-cloud-upload',label:'Push GHCR',duration:'0m 33s',
+    logs:[
+      {ts:'00:00',cls:'blue',msg:'docker/login-action - logging into ghcr.io'},
+      {ts:'00:08',cls:'blue',msg:'Pushing ghcr.io/samoliverareh/ai-ops-toolkit:main'},
+      {ts:'00:21',cls:'blue',msg:'Pushing tag: sha-fe37181'},
+      {ts:'00:33',cls:'green',msg:'  Image pushed - digest sha256:4f2a...'},
+    ],
+    meta:[{icon:'ti-clock',txt:'Duration: 33s'},{icon:'ti-check',txt:'2 tags pushed'},{icon:'ti-brand-github',txt:'ghcr.io/samoliverareh'}]
+  }
+];
+
+let pipeState=STEPS.map(()=>'done'); // default: all done
+let runTimer=null;
+let openStepIdx=null;
+
+function buildTrack(){
+  const track=document.getElementById('pipeTrack');
+  track.innerHTML='';
+  STEPS.forEach((step,i)=>{
+    const state=pipeState[i];
+    const iconMap={done:'ti-check',running:'ti-loader-2',fail:'ti-x',idle:'ti-minus',skip:'ti-minus'};
+    const icon=iconMap[state]||'ti-minus';
+
+    const stepEl=document.createElement('div');
+    stepEl.className='pipe-step';
+    stepEl.onclick=()=>openDetail(i);
+
+    const nodeWrap=document.createElement('div');
+    nodeWrap.className='pipe-node-wrap';
+
+    const dot=document.createElement('div');
+    dot.className=`pipe-dot ${state}`;
+    dot.innerHTML=`<i class="ti ${state==='idle'?step.icon:icon}"></i>`;
+    if(state==='running') dot.querySelector('i').style.animation='spin 1s linear infinite';
+
+    nodeWrap.appendChild(dot);
+
+    if(i<STEPS.length-1){
+      const conn=document.createElement('div');
+      conn.className='pipe-connector'+(state==='done'?' done':state==='running'?' active':'');
+      nodeWrap.appendChild(conn);
+    }
+
+    const labelRow=document.createElement('div');
+    labelRow.className='pipe-label-row';
+    const lbl=document.createElement('div');
+    lbl.className=`pipe-label ${state}`;
+    lbl.textContent=step.label;
+    labelRow.appendChild(lbl);
+
+    if(state!=='idle'){
+      const dur=document.createElement('div');
+      dur.className='pipe-duration';
+      dur.textContent=state==='done'?step.duration:state==='running'?'running...':state==='fail'?'failed':'-';
+      labelRow.appendChild(dur);
+    }
+
+    stepEl.appendChild(nodeWrap);
+    stepEl.appendChild(labelRow);
+    track.appendChild(stepEl);
+  });
+
+  const done=pipeState.filter(s=>s==='done').length;
+  const pct=Math.round(done/STEPS.length*100);
+  document.getElementById('pipeProgressFill').style.width=pct+'%';
+  document.getElementById('pipeProgressPct').textContent=pct+'%';
+}
+
+function openDetail(i){
+  const step=STEPS[i];
+  const state=pipeState[i];
+  openStepIdx=i;
+  document.getElementById('pipeDetailName').textContent=`${step.label} - ${state.toUpperCase()}`;
+  const logsEl=document.getElementById('pipeDetailLogs');
+  logsEl.innerHTML=step.logs.map(l=>`<div class="pipe-log-line"><span class="pipe-log-ts">${l.ts}</span><span class="pipe-log-msg ${l.cls}">${l.msg}</span></div>`).join('');
+  const metaEl=document.getElementById('pipeDetailMeta');
+  metaEl.innerHTML=step.meta.map(m=>`<span><i class="ti ${m.icon}"></i>${m.txt}</span>`).join('');
+  document.getElementById('pipeDetail').classList.add('open');
+}
+
+function closeDetail(){
+  document.getElementById('pipeDetail').classList.remove('open');
+  openStepIdx=null;
+}
+
+function runPipeline(){
+  if(runTimer){ clearTimeout(runTimer); runTimer=null; }
+  pipeState=STEPS.map(()=>'idle');
+  closeDetail();
+  buildTrack();
+  const now=new Date();
+  const ts=now.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  addLog(ts,'info','CI pipeline triggered - starting lint stage');
+  let idx=0;
+  function nextStep(){
+    if(idx>0) pipeState[idx-1]='done';
+    if(idx>=STEPS.length){ buildTrack(); addLog(ts,'ok','CI pipeline completed - all stages passed'); return; }
+    pipeState[idx]='running';
+    buildTrack();
+    if(openStepIdx===idx) openDetail(idx);
+    const dur=parseInt(STEPS[idx].duration)*1000+Math.random()*800;
+    const delay=Math.max(1200,dur*0.3);
+    runTimer=setTimeout(()=>{ idx++; nextStep(); },delay);
+  }
+  nextStep();
+}
+
+function failPipeline(){
+  if(runTimer){ clearTimeout(runTimer); runTimer=null; }
+  pipeState=STEPS.map(()=>'idle');
+  closeDetail();
+  buildTrack();
+  const now=new Date();
+  const ts=now.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  addLog(ts,'info','CI pipeline triggered - simulating failure at tests');
+  let idx=0;
+  function nextStep(){
+    if(idx>0) pipeState[idx-1]=(idx===3)?'fail':'done';
+    if(idx>=STEPS.length||pipeState[idx-1]==='fail'){
+      if(pipeState[idx-1]==='fail'){
+        for(let j=idx;j<STEPS.length;j++) pipeState[j]='skip';
+      }
+      buildTrack();
+      addLog(ts,'err','CI pipeline FAILED at "'+STEPS[idx-1]?.label+'" stage');
+      return;
+    }
+    pipeState[idx]='running';
+    buildTrack();
+    const delay=idx===2?400:900;
+    runTimer=setTimeout(()=>{ idx++; nextStep(); },delay);
+  }
+  nextStep();
+}
+
+function resetPipeline(){
+  if(runTimer){ clearTimeout(runTimer); runTimer=null; }
+  pipeState=STEPS.map(()=>'done');
+  closeDetail();
+  buildTrack();
+}
+
+buildTrack();
+
+/* -- CHART -- */
+let perfChart=null;
+function buildChart(){
+  const isDark=document.documentElement.getAttribute('data-theme')==='dark';
+  const gridColor=isDark?'rgba(255,255,255,0.04)':'rgba(0,0,0,0.06)';
+  const tickColor=isDark?'#555870':'#9a9eb4';
+  const ttBg=isDark?'#0f1117':'#ffffff';
+  const ttBorder=isDark?'rgba(255,255,255,0.1)':'rgba(0,0,0,0.1)';
+  const ttTitle=isDark?'#8b8fa8':'#5a5e72';
+  const ttBody=isDark?'#e8eaf0':'#111318';
+
+  if(perfChart) perfChart.destroy();
+  const ctx=document.getElementById('perfChart').getContext('2d');
+  perfChart=new Chart(ctx,{
+    type:'line',
+    data:{
+      labels:['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],
+      datasets:[
+        {label:'Accuracy',data:[90.1,91.2,89.8,91.5,92.0,91.8,91.3],borderColor:'#1fd898',backgroundColor:'rgba(31,216,152,0.06)',borderWidth:2,pointRadius:3,pointBackgroundColor:'#1fd898',fill:true,tension:0.4},
+        {label:'F1 Score',data:[87.5,88.1,86.9,88.4,89.0,88.7,88.3],borderColor:'#4a9eff',backgroundColor:'rgba(74,158,255,0.04)',borderWidth:2,pointRadius:3,pointBackgroundColor:'#4a9eff',fill:true,tension:0.4,borderDash:[4,3]}
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{display:false},
+        tooltip:{backgroundColor:ttBg,borderColor:ttBorder,borderWidth:1,titleColor:ttTitle,bodyColor:ttBody,callbacks:{label:c=>` ${c.dataset.label}: ${c.parsed.y.toFixed(1)}%`}}
+      },
+      scales:{
+        x:{grid:{color:gridColor},ticks:{color:tickColor,font:{family:"'JetBrains Mono'",size:10}}},
+        y:{min:85,max:95,grid:{color:gridColor},ticks:{color:tickColor,font:{family:"'JetBrains Mono'",size:10},callback:v=>v+'%'}}
+      }
+    }
+  });
+}
+function updateChartTheme(){ buildChart(); }
+buildChart();
+
+/* -- LOG -- */
+function addLog(ts,level,msg){
+  const box=document.getElementById('logBox');
+  const line=document.createElement('div');
+  line.className='log-line';
+  line.innerHTML=`<span class="log-ts">${ts}</span><span class="log-lvl ${level}">[${level.toUpperCase()}]</span><span class="log-msg">${msg}</span>`;
+  box.insertBefore(line,box.firstChild);
+  const lines=box.querySelectorAll('.log-line');
+  if(lines.length>20) lines[lines.length-1].remove();
+}
+function clearLog(){
+  document.getElementById('logBox').innerHTML='<div class="log-line"><span class="log-ts">--:--:--</span><span class="log-lvl info">[INFO]</span><span class="log-msg">Log cleared.</span></div>';
+}
+
+/* -- REFRESH -- */
+function simulateRefresh(){
+  const icon=document.getElementById('refreshIcon');
+  icon.style.animation='spin 0.7s linear';
+  setTimeout(()=>icon.style.animation='',750);
+  secondsAgo=0;
+  document.getElementById('lastCheck').textContent='just now';
+  const now=new Date();
+  const ts=now.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  addLog(ts,'ok','health_check.sh - manual refresh - all systems healthy');
+}
+
+/* -- LIVE LOG TICKER -- */
+const liveLogs=[
+  ['ok',  'health_check.sh - all endpoints responding < 200ms'],
+  ['info','data_pipeline.py - chunk 14 processed, 1,024 rows loaded'],
+  ['ok',  'model_monitor.py - drift check passed, score 0.038'],
+  ['warn','sla_monitor.py - OPS-004 approaching SLA boundary (68h/72h)'],
+  ['info','model_backup.sh - incremental backup queued'],
+  ['ok',  'health_check.sh - disk usage stable at 71%'],
+];
+let logIdx=0;
+setInterval(()=>{
+  const now=new Date();
+  const ts=now.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const e=liveLogs[logIdx%liveLogs.length];
+  addLog(ts,e[0],e[1]);
+  logIdx++;
+},9000);
+</script>
+</body>
+</html>

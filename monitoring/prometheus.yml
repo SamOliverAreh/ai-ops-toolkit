@@ -1,0 +1,35 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    environment: production
+    project: ai-ops-toolkit
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["alertmanager:9093"]
+
+rule_files:
+  - "alerts.yml"
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: node-exporter
+    static_configs:
+      - targets: ["node-exporter:9100"]
+
+  - job_name: ai-ops-health
+    static_configs:
+      - targets: ["ai-ops:8000"]
+    metrics_path: /metrics
+    scrape_interval: 30s
+
+  - job_name: model-api
+    static_configs:
+      - targets: ["localhost:8080"]
+    metrics_path: /metrics
+    scrape_interval: 60s

@@ -1,0 +1,95 @@
+groups:
+  - name: ai_ops_alerts
+    interval: 1m
+    rules:
+
+      # ── System ──────────────────────────────────────────────────────────────
+      - alert: HighCPUUsage
+        expr: ai_ops_cpu_usage_pct > 90
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage on {{ $labels.instance }}"
+          description: "CPU usage is {{ $value }}% (threshold: 90%)"
+
+      - alert: CriticalMemoryUsage
+        expr: ai_ops_memory_usage_pct > 95
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical memory usage on {{ $labels.instance }}"
+          description: "Memory at {{ $value }}%"
+
+      - alert: DiskSpaceWarning
+        expr: ai_ops_disk_usage_pct > 80
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Disk space warning on {{ $labels.mount }}"
+          description: "Disk {{ $labels.mount }} is {{ $value }}% full"
+
+      - alert: DiskSpaceCritical
+        expr: ai_ops_disk_usage_pct > 90
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Disk space critical on {{ $labels.mount }}"
+
+      # ── Endpoints ───────────────────────────────────────────────────────────
+      - alert: EndpointDown
+        expr: ai_ops_endpoint_status == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Endpoint {{ $labels.name }} is DOWN"
+          description: "Health check failing for {{ $labels.name }}"
+
+      - alert: HighEndpointLatency
+        expr: ai_ops_endpoint_response_ms > 2000
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High latency on {{ $labels.name }}"
+          description: "Response time {{ $value }}ms"
+
+      # ── Model ────────────────────────────────────────────────────────────────
+      - alert: ModelDriftDetected
+        expr: ai_ops_drift_score > 0.15
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Model drift detected"
+          description: "Drift score {{ $value }} exceeds threshold 0.15"
+
+      - alert: ModelPerformanceDegraded
+        expr: ai_ops_model_accuracy < 0.80
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Model accuracy degraded"
+          description: "Accuracy {{ $value }} below threshold 0.80"
+
+      # ── Health check ─────────────────────────────────────────────────────────
+      - alert: HealthCheckCritical
+        expr: ai_ops_health_status == 2
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Health check reports CRITICAL status"
+
+      - alert: HealthCheckDegraded
+        expr: ai_ops_health_status == 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Health check reports DEGRADED status"

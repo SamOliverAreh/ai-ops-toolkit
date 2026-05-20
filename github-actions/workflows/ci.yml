@@ -1,0 +1,147 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  # ────────────────────────────────────────────────
+  lint:
+    name: Lint & Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install linters
+        run: pip install ruff black
+
+      - name: ruff check
+        run: ruff check scripts/python/ tests/python/
+
+      - name: black check
+        run: black --check scripts/python/ tests/python/
+
+      - name: shellcheck (bash scripts)
+        run: |
+          sudo apt-get install -y shellcheck
+          find scripts/bash -name "*.sh" -exec shellcheck {} +
+
+  # ────────────────────────────────────────────────
+  test-python:
+    name: Python Tests
+    runs-on: ubuntu-latest
+    needs: lint
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Create required directories
+        run: mkdir -p logs output
+
+      - name: Run pytest
+        run: |
+          pytest tests/python/ \
+            --cov=scripts/python \
+            --cov-report=xml \
+            --cov-report=term-missing \
+            -v
+        env:
+          ENV: test
+          SLACK_WEBHOOK_URL: ""   # Disabled in CI
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          file: coverage.xml
+          fail_ci_if_error: false
+
+  # ────────────────────────────────────────────────
+  test-bash:
+    name: Bash Tests
+    runs-on: ubuntu-latest
+    needs: lint
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install bats-core
+        run: |
+          git clone --depth 1 https://github.com/bats-core/bats-core.git /tmp/bats
+          sudo /tmp/bats/install.sh /usr/local
+
+      - name: Run bats tests
+        run: bats tests/bash/
+
+  # ────────────────────────────────────────────────
+  demo-runs:
+    name: Demo Run (integration smoke test)
+    runs-on: ubuntu-latest
+    needs: [test-python, test-bash]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Create dirs
+        run: mkdir -p logs output logs/monitoring
+
+      - name: Run model monitor (demo)
+        run: python scripts/python/model_monitor.py --demo
+        env:
+          SLACK_WEBHOOK_URL: ""
+
+      - name: Run SLA monitor (demo)
+        run: python scripts/python/sla_monitor.py --source demo
+        env:
+          SLACK_WEBHOOK_URL: ""
+
+      - name: Run data pipeline (demo)
+        run: python scripts/python/data_pipeline.py --demo
+        env:
+          SLACK_WEBHOOK_URL: ""
+
+      - name: Run report emailer (demo)
+        run: python scripts/python/report_emailer.py --demo --save output/report.html
+        env:
+          SLACK_WEBHOOK_URL: ""
+
+      - name: Run health check (dry)
+        run: |
+          chmod +x scripts/bash/health_check.sh
+          bash scripts/bash/health_check.sh || true   # exits non-zero in CI, that's OK
+        continue-on-error: true
+
+      - name: Upload demo artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: demo-outputs
+          path: output/
+          retention-days: 7

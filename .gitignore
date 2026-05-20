@@ -1,0 +1,63 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.venv/
+venv/
+env/
+.env
+!.env.example
+
+# Testing & coverage
+.pytest_cache/
+.coverage
+coverage.xml
+coverage_html/
+htmlcov/
+.tox/
+
+# Linting
+.ruff_cache/
+.mypy_cache/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Logs & outputs
+logs/
+output/
+*.log
+*.log.gz
+
+# Models & data
+models/
+*.pkl
+*.h5
+*.pt
+*.onnx
+data/raw/
+data/processed/
+
+# Docker
+.docker/
+
+# Monitoring
+monitoring/grafana_provisioning/
+
+# Secrets
+*.pem
+*.key
+*.p12
+secrets/
